@@ -257,3 +257,11 @@ func TestNullChecks(t *testing.T) {
 		t.Error("Expected BytesToBuffer to return ERR_NULL_PTR")
 	}
 }
+
+func TestCStr(t *testing.T) {
+	bytes := make([]byte, 16)
+	ptr := CPtr(&bytes)
+	if ptr == nil {
+		t.Error("CPtr returned nil")
+	}
+}
