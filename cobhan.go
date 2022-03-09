@@ -61,6 +61,24 @@ func AllocateBuffer(length int) []byte {
 	return buf
 }
 
+func AllocateStringBuffer(str string) ([]byte, int32) {
+	buf := AllocateBuffer(len(str))
+	result := StringToBufferSafe(str, &buf)
+	if result != ERR_NONE {
+		return nil, result
+	}
+	return buf, ERR_NONE
+}
+
+func AllocateBytesBuffer(bytes []byte) ([]byte, int32) {
+	buf := AllocateBuffer(len(bytes))
+	result := BytesToBufferSafe(bytes, &buf)
+	if result != ERR_NONE {
+		return nil, result
+	}
+	return buf, ERR_NONE
+}
+
 func bufferPtrToLength(bufferPtr unsafe.Pointer) C.int {
 	return C.int(*(*int32)(bufferPtr))
 }
