@@ -90,38 +90,66 @@ func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
 	return fileData, ERR_NONE
 }
 
-func Int64ToBuffer(value int64, dstPtr unsafe.Pointer) {
+func Int64ToBuffer(value int64, dstPtr unsafe.Pointer) int32 {
+	if dstPtr == nil {
+		return ERR_NULL_PTR
+	}
 	intPtr := (*int64)(dstPtr)
 	*intPtr = value
+	return 0
 }
 
-func Int64ToBufferSafe(value int64, dst *[]byte) {
+func Int64ToBufferSafe(value int64, dst *[]byte) int32 {
+	if dst == nil {
+		return ERR_NULL_PTR
+	}
 	Int64ToBuffer(value, unsafe.Pointer(&(*dst)[0]))
+	return 0
 }
 
-func BufferToInt64Safe(src *[]byte) int64 {
+func BufferToInt64Safe(src *[]byte) (int64, int32) {
+	if src == nil {
+		return 0, ERR_NULL_PTR
+	}
 	return BufferToInt64(unsafe.Pointer(&(*src)[0]))
 }
 
-func BufferToInt64(srcPtr unsafe.Pointer) int64 {
-	return *(*int64)(srcPtr)
+func BufferToInt64(srcPtr unsafe.Pointer) (int64, int32) {
+	if srcPtr == nil {
+		return 0, ERR_NULL_PTR
+	}
+	return *(*int64)(srcPtr), 0
 }
 
-func Int32ToBuffer(value int32, dstPtr unsafe.Pointer) {
+func Int32ToBuffer(value int32, dstPtr unsafe.Pointer) int32 {
+	if dstPtr == nil {
+		return ERR_NULL_PTR
+	}
 	intPtr := (*int32)(dstPtr)
 	*intPtr = value
+	return 0
 }
 
-func BufferToInt32Safe(src *[]byte) int32 {
+func BufferToInt32Safe(src *[]byte) (int32, int32) {
+	if src == nil {
+		return 0, ERR_NULL_PTR
+	}
 	return BufferToInt32(unsafe.Pointer(&(*src)[0]))
 }
 
-func BufferToInt32(srcPtr unsafe.Pointer) int32 {
-	return *(*int32)(srcPtr)
+func BufferToInt32(srcPtr unsafe.Pointer) (int32, int32) {
+	if srcPtr == nil {
+		return 0, ERR_NULL_PTR
+	}
+	return *(*int32)(srcPtr), 0
 }
 
-func Int32ToBufferSafe(value int32, dst *[]byte) {
+func Int32ToBufferSafe(value int32, dst *[]byte) int32 {
+	if dst == nil {
+		return ERR_NULL_PTR
+	}
 	Int32ToBuffer(value, unsafe.Pointer(&(*dst)[0]))
+	return 0
 }
 
 func BufferToBytesSafe(src *[]byte) ([]byte, int32) {
