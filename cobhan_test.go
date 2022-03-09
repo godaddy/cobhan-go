@@ -134,35 +134,35 @@ func TestInt32RoundTrip(t *testing.T) {
 }
 
 func TestInvalidJson(t *testing.T) {
-    buf := AllocateBuffer(256)
-    invalidJsonStr := strings.Repeat("}", 10)
-    result := StringToBufferSafe(invalidJsonStr, &buf)
-    if result != 0 {
-        t.Error(fmt.Sprint("StringToBufferSafe returned {}", result))
-        return
-    }
-    _, result = BufferToJsonSafe(&buf)
-    if result != ERR_JSON_DECODE_FAILED {
-        t.Error("Expected BufferToJsonSafe to return ERR_JSON_DECODE_FAILED")
-    }
-    result = JsonToBufferSafe(TestInvalidJson, &buf)
-    if result != ERR_JSON_ENCODE_FAILED {
-        t.Error("Expected JsonToBufferSafe to return ERR_JSON_ENCODE_FAILED")
-    }
+	buf := AllocateBuffer(256)
+	invalidJsonStr := strings.Repeat("}", 10)
+	result := StringToBufferSafe(invalidJsonStr, &buf)
+	if result != 0 {
+		t.Error(fmt.Sprint("StringToBufferSafe returned {}", result))
+		return
+	}
+	_, result = BufferToJsonSafe(&buf)
+	if result != ERR_JSON_DECODE_FAILED {
+		t.Error("Expected BufferToJsonSafe to return ERR_JSON_DECODE_FAILED")
+	}
+	result = JsonToBufferSafe(TestInvalidJson, &buf)
+	if result != ERR_JSON_ENCODE_FAILED {
+		t.Error("Expected JsonToBufferSafe to return ERR_JSON_ENCODE_FAILED")
+	}
 }
 
 func TestSetDefaultBufferMaximum(t *testing.T) {
 	SetDefaultBufferMaximum(16384)
-    buf := AllocateBuffer(32)
-    SetDefaultBufferMaximum(16)
-    _, result := BufferToBytesSafe(&buf)
-    if result != ERR_BUFFER_TOO_LARGE {
-        t.Error("Expected BufferToBytesSafe to return ERR_BUFFER_TOO_LARGE")
-    }
-    _, result = BufferToStringSafe(&buf)
-    if result != ERR_BUFFER_TOO_LARGE {
-        t.Error("Expected BufferToBytesSafe to return ERR_BUFFER_TOO_LARGE")
-    }
+	buf := AllocateBuffer(32)
+	SetDefaultBufferMaximum(16)
+	_, result := BufferToBytesSafe(&buf)
+	if result != ERR_BUFFER_TOO_LARGE {
+		t.Error("Expected BufferToBytesSafe to return ERR_BUFFER_TOO_LARGE")
+	}
+	_, result = BufferToStringSafe(&buf)
+	if result != ERR_BUFFER_TOO_LARGE {
+		t.Error("Expected BufferToBytesSafe to return ERR_BUFFER_TOO_LARGE")
+	}
 }
 
 func TestNullChecks(t *testing.T) {
