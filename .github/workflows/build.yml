@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-linux:
+  test-linux:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -18,7 +18,7 @@ jobs:
         go-version: 1.17
     - name: Test Cobhan
       run: ./test.sh
-  build-macos:
+  test-macos:
     timeout-minutes: 15
     runs-on: 'macos-latest'
     steps:
