@@ -47,6 +47,12 @@ func SetDefaultBufferMaximum(max int) {
 	DefaultBufferMaximum = max
 }
 
+func AllocateBuffer(length int) []byte {
+	buf := make([]byte, length+BUFFER_HEADER_SIZE)
+	updateBufferPtrLength(unsafe.Pointer(&buf[0]), length)
+	return buf
+}
+
 func bufferPtrToLength(bufferPtr unsafe.Pointer) C.int {
 	return C.int(*(*int32)(bufferPtr))
 }
@@ -85,13 +91,41 @@ func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
 }
 
 func Int64ToBuffer(value int64, dstPtr unsafe.Pointer) {
-    intPtr := (*int64)(dstPtr)
-    *intPtr = value
+	intPtr := (*int64)(dstPtr)
+	*intPtr = value
+}
+
+func Int64ToBufferSafe(value int64, dst *[]byte) {
+	Int64ToBuffer(value, unsafe.Pointer(&(*dst)[0]))
+}
+
+func BufferToInt64Safe(src *[]byte) int64 {
+	return BufferToInt64(unsafe.Pointer(&(*src)[0]))
+}
+
+func BufferToInt64(srcPtr unsafe.Pointer) int64 {
+	return *(*int64)(srcPtr)
 }
 
 func Int32ToBuffer(value int32, dstPtr unsafe.Pointer) {
-    intPtr := (*int32)(dstPtr)
-    *intPtr = value
+	intPtr := (*int32)(dstPtr)
+	*intPtr = value
+}
+
+func BufferToInt32Safe(src *[]byte) int32 {
+	return BufferToInt32(unsafe.Pointer(&(*src)[0]))
+}
+
+func BufferToInt32(srcPtr unsafe.Pointer) int32 {
+	return *(*int32)(srcPtr)
+}
+
+func Int32ToBufferSafe(value int32, dst *[]byte) {
+	Int32ToBuffer(value, unsafe.Pointer(&(*dst)[0]))
+}
+
+func BufferToBytesSafe(src *[]byte) ([]byte, int32) {
+	return BufferToBytes(unsafe.Pointer(&(*src)[0]))
 }
 
 func BufferToBytes(srcPtr unsafe.Pointer) ([]byte, int32) {
@@ -106,6 +140,10 @@ func BufferToBytes(srcPtr unsafe.Pointer) ([]byte, int32) {
 	} else {
 		return tempToBytes(srcPtr, length)
 	}
+}
+
+func BufferToStringSafe(src *[]byte) (string, int32) {
+	return BufferToString(unsafe.Pointer(&(*src)[0]))
 }
 
 func BufferToString(srcPtr unsafe.Pointer) (string, int32) {
@@ -126,6 +164,10 @@ func BufferToString(srcPtr unsafe.Pointer) (string, int32) {
 	}
 }
 
+func BufferToJsonSafe(src *[]byte) (map[string]interface{}, int32) {
+	return BufferToJson(unsafe.Pointer(&(*src)[0]))
+}
+
 func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 	bytes, result := BufferToBytes(srcPtr)
 	if result < 0 {
@@ -140,8 +182,16 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 	return loadedJson.(map[string]interface{}), ERR_NONE
 }
 
+func StringToBufferSafe(str string, dst *[]byte) int32 {
+	return StringToBuffer(str, unsafe.Pointer(&(*dst)[0]))
+}
+
 func StringToBuffer(str string, dstPtr unsafe.Pointer) int32 {
 	return BytesToBuffer([]byte(str), dstPtr)
+}
+
+func JsonToBufferSafe(v interface{}, dst *[]byte) int32 {
+	return JsonToBuffer(v, unsafe.Pointer(&(*dst)[0]))
 }
 
 func JsonToBuffer(v interface{}, dstPtr unsafe.Pointer) int32 {
@@ -150,6 +200,10 @@ func JsonToBuffer(v interface{}, dstPtr unsafe.Pointer) int32 {
 		return ERR_JSON_ENCODE_FAILED
 	}
 	return BytesToBuffer(outputBytes, dstPtr)
+}
+
+func BytesToBufferSafe(bytes []byte, dst *[]byte) int32 {
+	return BytesToBuffer(bytes, unsafe.Pointer(&(*dst)[0]))
 }
 
 func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
