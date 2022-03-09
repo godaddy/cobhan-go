@@ -81,7 +81,10 @@ func TestBytesRoundTrip(t *testing.T) {
 func TestInt64RoundTrip(t *testing.T) {
 	buf := AllocateBuffer(0)
 	Int64ToBufferSafe(1234, &buf)
-	value := BufferToInt64Safe(&buf)
+	value, result := BufferToInt64Safe(&buf)
+    if result != 0 {
+        t.Error(fmt.Sprint("BufferToInt64Safe returned {}", result))
+    }
 	if value != 1234 {
 		t.Error("Expected int64 value to be 1234")
 	}
@@ -90,9 +93,12 @@ func TestInt64RoundTrip(t *testing.T) {
 func TestInt32RoundTrip(t *testing.T) {
 	buf := AllocateBuffer(0)
 	Int32ToBufferSafe(1234, &buf)
-	value := BufferToInt32Safe(&buf)
+	value, result := BufferToInt32Safe(&buf)
+    if result != 0 {
+        t.Error(fmt.Sprint("BufferToInt32Safe returned {}", result))
+    }
 	if value != 1234 {
-		t.Error("Expected int64 value to be 1234")
+		t.Error("Expected int32 value to be 1234")
 	}
 }
 
