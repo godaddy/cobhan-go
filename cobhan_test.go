@@ -16,7 +16,7 @@ func TestStringRoundTrip(t *testing.T) {
 	}
 
 	output, result := BufferToStringSafe(&buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("BufferToStringSafe returned {}", result))
 		return
 	}
@@ -27,10 +27,15 @@ func TestStringRoundTrip(t *testing.T) {
 }
 
 func TestStringRoundTripTemp(t *testing.T) {
-	buf := AllocateBuffer(120)
-	input := strings.Repeat("X", 128)
+	// Make the string large enough to hold any rational temp file name
+	const stringSize = 16384
+	// Allocate a buffer too small for the input string
+	buf := AllocateBuffer(stringSize - 1)
+	// Allocate a string larger than the buffer so we use a temp file
+	input := strings.Repeat("X", stringSize)
+	// Should succeed because we can use a temp file and store the file name instead
 	result := StringToBufferSafe(input, &buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("StringToBufferSafe returned {}", result))
 		return
 	}
@@ -47,9 +52,14 @@ func TestStringRoundTripTemp(t *testing.T) {
 }
 
 func TestStringRoundTripTempDoesNotFit(t *testing.T) {
-	buf := AllocateBuffer(2)
-	input := strings.Repeat("X", 3)
+	// Make the string too small to hold any temp file name
+	const stringSize = 3
+	// Allocate a buffer too small for input string
+	buf := AllocateBuffer(stringSize - 1)
+	// Allocate a string larger than the buffer so we use a temp file
+	input := strings.Repeat("X", stringSize)
 	result := StringToBufferSafe(input, &buf)
+	// Should fail because temp file name doesn't fit in buffer
 	if result != ERR_BUFFER_TOO_SMALL {
 		t.Error(fmt.Sprint("Expected StringToBufferSafe to return ERR_BUFFER_TOO_SMALL returned {}", result))
 	}
@@ -60,31 +70,35 @@ const testJson string = "{ \"name1\": \"value1\", \"name2\": \"value2\" }"
 func TestJsonRoundTrip(t *testing.T) {
 	buf := AllocateBuffer(4097)
 	result := StringToBufferSafe(testJson, &buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("StringToBuffer returned {}", result))
 		return
 	}
 
 	json, result := BufferToJsonSafe(&buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("Failed to convert BufferToJson {}", result))
 		return
 	}
 
 	buf2 := AllocateBuffer(4097)
 	result = JsonToBufferSafe(json, &buf2)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("JsonToBuffer returned {}", result))
 		return
 	}
 
 	json2, result := BufferToJsonSafe(&buf2)
+	if result != ERR_NONE {
+		t.Error(fmt.Sprint("BufferToJsonSafe returned {}", result))
+		return
+	}
 	if json2["name1"] != "value1" {
-		t.Error(fmt.Sprint("Expected json[name1] == value1"))
+		t.Error("Expected json[name1] == value1")
 		return
 	}
 	if json2["name2"] != "value2" {
-		t.Error(fmt.Sprint("Expected json[name2] == value2"))
+		t.Error("Expected json[name2] == value2")
 		return
 	}
 }
@@ -97,11 +111,11 @@ func TestBytesRoundTrip(t *testing.T) {
 	bytes[3] = 4
 	buf := AllocateBuffer(4)
 	result := BytesToBufferSafe(bytes, &buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("BytesToBufferSafe returned {}", result))
 	}
 	bytes2, result := BufferToBytesSafe(&buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("BufferToBytesSafe returned {}", result))
 	}
 	if bytes2[3] != 4 {
@@ -113,7 +127,7 @@ func TestInt64RoundTrip(t *testing.T) {
 	buf := AllocateBuffer(0)
 	Int64ToBufferSafe(1234, &buf)
 	value, result := BufferToInt64Safe(&buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("BufferToInt64Safe returned {}", result))
 	}
 	if value != 1234 {
@@ -125,7 +139,7 @@ func TestInt32RoundTrip(t *testing.T) {
 	buf := AllocateBuffer(0)
 	Int32ToBufferSafe(1234, &buf)
 	value, result := BufferToInt32Safe(&buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("BufferToInt32Safe returned {}", result))
 	}
 	if value != 1234 {
@@ -137,7 +151,7 @@ func TestInvalidJson(t *testing.T) {
 	buf := AllocateBuffer(256)
 	invalidJsonStr := strings.Repeat("}", 10)
 	result := StringToBufferSafe(invalidJsonStr, &buf)
-	if result != 0 {
+	if result != ERR_NONE {
 		t.Error(fmt.Sprint("StringToBufferSafe returned {}", result))
 		return
 	}
