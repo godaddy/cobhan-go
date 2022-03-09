@@ -153,10 +153,16 @@ func Int32ToBufferSafe(value int32, dst *[]byte) int32 {
 }
 
 func BufferToBytesSafe(src *[]byte) ([]byte, int32) {
+	if src == nil {
+		return nil, ERR_NULL_PTR
+	}
 	return BufferToBytes(unsafe.Pointer(&(*src)[0]))
 }
 
 func BufferToBytes(srcPtr unsafe.Pointer) ([]byte, int32) {
+	if srcPtr == nil {
+		return nil, ERR_NULL_PTR
+	}
 	length := bufferPtrToLength(srcPtr)
 
 	if DefaultBufferMaximum < int(length) {
@@ -171,10 +177,16 @@ func BufferToBytes(srcPtr unsafe.Pointer) ([]byte, int32) {
 }
 
 func BufferToStringSafe(src *[]byte) (string, int32) {
+	if src == nil {
+		return "", ERR_NULL_PTR
+	}
 	return BufferToString(unsafe.Pointer(&(*src)[0]))
 }
 
 func BufferToString(srcPtr unsafe.Pointer) (string, int32) {
+	if srcPtr == nil {
+		return "", ERR_NULL_PTR
+	}
 	length := bufferPtrToLength(srcPtr)
 
 	if DefaultBufferMaximum < int(length) {
@@ -193,10 +205,16 @@ func BufferToString(srcPtr unsafe.Pointer) (string, int32) {
 }
 
 func BufferToJsonSafe(src *[]byte) (map[string]interface{}, int32) {
+	if src == nil {
+		return nil, ERR_NULL_PTR
+	}
 	return BufferToJson(unsafe.Pointer(&(*src)[0]))
 }
 
 func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
+	if srcPtr == nil {
+		return nil, ERR_NULL_PTR
+	}
 	bytes, result := BufferToBytes(srcPtr)
 	if result < 0 {
 		return nil, result
@@ -211,18 +229,30 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 }
 
 func StringToBufferSafe(str string, dst *[]byte) int32 {
+	if dst == nil {
+		return ERR_NULL_PTR
+	}
 	return StringToBuffer(str, unsafe.Pointer(&(*dst)[0]))
 }
 
 func StringToBuffer(str string, dstPtr unsafe.Pointer) int32 {
+	if dstPtr == nil {
+		return ERR_NULL_PTR
+	}
 	return BytesToBuffer([]byte(str), dstPtr)
 }
 
 func JsonToBufferSafe(v interface{}, dst *[]byte) int32 {
+	if dst == nil {
+		return ERR_NULL_PTR
+	}
 	return JsonToBuffer(v, unsafe.Pointer(&(*dst)[0]))
 }
 
 func JsonToBuffer(v interface{}, dstPtr unsafe.Pointer) int32 {
+	if dstPtr == nil {
+		return ERR_NULL_PTR
+	}
 	outputBytes, err := json.Marshal(v)
 	if err != nil {
 		return ERR_JSON_ENCODE_FAILED
@@ -231,10 +261,16 @@ func JsonToBuffer(v interface{}, dstPtr unsafe.Pointer) int32 {
 }
 
 func BytesToBufferSafe(bytes []byte, dst *[]byte) int32 {
+	if dst == nil {
+		return ERR_NULL_PTR
+	}
 	return BytesToBuffer(bytes, unsafe.Pointer(&(*dst)[0]))
 }
 
 func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
+	if dstPtr == nil {
+		return ERR_NULL_PTR
+	}
 	//Get the destination capacity from the Buffer
 	dstCap := bufferPtrToLength(dstPtr)
 
@@ -260,7 +296,6 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 		// Write the data to a temp file and copy the temp file name into the buffer
 		file, err := ioutil.TempFile("", "cobhan-*")
 		if err != nil {
-			//fmt.Errorf("Failed to create temp file")
 			return ERR_WRITE_TEMP_FILE_FAILED
 		}
 
@@ -268,7 +303,6 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 
 		if len(fileName) > dstCapInt {
 			// Even the file path won't fit in the output buffer, we're completely out of luck now
-			//fmt.Errorf("Output buffer can't handle temp file name")
 			file.Close()
 			os.Remove(fileName)
 			return ERR_BUFFER_TOO_SMALL
@@ -276,7 +310,6 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 
 		_, err = file.Write(bytes)
 		if err != nil {
-			//fmt.Errorf("Temp file write failed")
 			file.Close()
 			os.Remove(fileName)
 			return ERR_WRITE_TEMP_FILE_FAILED
