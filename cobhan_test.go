@@ -2,7 +2,6 @@ package cobhan
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -10,8 +9,7 @@ import (
 func testAllocateStringBuffer(t *testing.T, str string) []byte {
 	buf, result := AllocateStringBuffer(str)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("AllocateStringBuffer returned %v", result))
-		t.FailNow()
+		t.Errorf("AllocateStringBuffer returned %v", result)
 	}
 	return buf
 }
@@ -19,8 +17,7 @@ func testAllocateStringBuffer(t *testing.T, str string) []byte {
 func testAllocateBytesBuffer(t *testing.T, bytes []byte) []byte {
 	buf, result := AllocateBytesBuffer(bytes)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("AllocateBytesBuffer returned %v", result))
-		t.FailNow()
+		t.Errorf("AllocateBytesBuffer returned %v", result)
 	}
 	return buf
 }
@@ -30,12 +27,10 @@ func TestStringRoundTrip(t *testing.T) {
 	buf := testAllocateStringBuffer(t, input)
 	output, result := BufferToStringSafe(&buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("BufferToStringSafe returned %v", result))
-		return
+		t.Errorf("BufferToStringSafe returned %v", result)
 	}
 	if output != input {
-		t.Error(fmt.Sprintf("Expected %v got %v", input, output))
-		return
+		t.Errorf("Expected %v got %v", input, output)
 	}
 }
 
@@ -49,18 +44,15 @@ func TestStringRoundTripTemp(t *testing.T) {
 	// Should succeed because we can use a temp file and store the file name instead
 	result := StringToBufferSafe(input, &buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("StringToBufferSafe returned %v", result))
-		return
+		t.Errorf("StringToBufferSafe returned %v", result)
 	}
 
 	output, result := BufferToStringSafe(&buf)
 	if result != 0 {
-		t.Error(fmt.Sprintf("BufferToStringSafe returned %v", result))
-		return
+		t.Errorf("BufferToStringSafe returned %v", result)
 	}
 	if output != input {
-		t.Error(fmt.Sprintf("Expected %v got %v", input, output))
-		return
+		t.Errorf("Expected %v got %v", input, output)
 	}
 }
 
@@ -74,7 +66,7 @@ func TestStringRoundTripTempDoesNotFit(t *testing.T) {
 	result := StringToBufferSafe(input, &buf)
 	// Should fail because temp file name doesn't fit in buffer
 	if result != ERR_BUFFER_TOO_SMALL {
-		t.Error(fmt.Sprintf("Expected StringToBufferSafe to return ERR_BUFFER_TOO_SMALL returned %v", result))
+		t.Errorf("Expected StringToBufferSafe to return ERR_BUFFER_TOO_SMALL returned %v", result)
 	}
 }
 
@@ -84,35 +76,29 @@ func TestJsonRoundTrip(t *testing.T) {
 	buf := AllocateBuffer(4097)
 	result := StringToBufferSafe(testJson, &buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("StringToBuffer returned %v", result))
-		return
+		t.Errorf("StringToBuffer returned %v", result)
 	}
 
 	json, result := BufferToJsonSafe(&buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("Failed to convert BufferToJson %v", result))
-		return
+		t.Errorf("Failed to convert BufferToJson %v", result)
 	}
 
 	buf2 := AllocateBuffer(4097)
 	result = JsonToBufferSafe(json, &buf2)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("JsonToBuffer returned %v", result))
-		return
+		t.Errorf("JsonToBuffer returned %v", result)
 	}
 
 	json2, result := BufferToJsonSafe(&buf2)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("BufferToJsonSafe returned %v", result))
-		return
+		t.Errorf("BufferToJsonSafe returned %v", result)
 	}
 	if json2["name1"] != "value1" {
 		t.Error("Expected json[name1] == value1")
-		return
 	}
 	if json2["name2"] != "value2" {
 		t.Error("Expected json[name2] == value2")
-		return
 	}
 }
 
@@ -125,7 +111,7 @@ func TestBytesRoundTrip(t *testing.T) {
 	buf := testAllocateBytesBuffer(t, bytes1)
 	bytes2, result := BufferToBytesSafe(&buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("BufferToBytesSafe returned %v", result))
+		t.Errorf("BufferToBytesSafe returned %v", result)
 	}
 
 	if !bytes.Equal(bytes1, bytes2) {
@@ -138,7 +124,7 @@ func TestInt64RoundTrip(t *testing.T) {
 	Int64ToBufferSafe(1234, &buf)
 	value, result := BufferToInt64Safe(&buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("BufferToInt64Safe returned %v", result))
+		t.Errorf("BufferToInt64Safe returned %v", result)
 	}
 	if value != 1234 {
 		t.Error("Expected int64 value to be 1234")
@@ -150,7 +136,7 @@ func TestInt32RoundTrip(t *testing.T) {
 	Int32ToBufferSafe(1234, &buf)
 	value, result := BufferToInt32Safe(&buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("BufferToInt32Safe returned %v", result))
+		t.Errorf("BufferToInt32Safe returned %v", result)
 	}
 	if value != 1234 {
 		t.Error("Expected int32 value to be 1234")
@@ -162,8 +148,7 @@ func TestInvalidJson(t *testing.T) {
 	invalidJsonStr := strings.Repeat("}", 10)
 	result := StringToBufferSafe(invalidJsonStr, &buf)
 	if result != ERR_NONE {
-		t.Error(fmt.Sprintf("StringToBufferSafe returned %v", result))
-		return
+		t.Errorf("StringToBufferSafe returned %v", result)
 	}
 	_, result = BufferToJsonSafe(&buf)
 	if result != ERR_JSON_DECODE_FAILED {
@@ -187,6 +172,8 @@ func TestSetDefaultBufferMaximum(t *testing.T) {
 	if result != ERR_BUFFER_TOO_LARGE {
 		t.Error("Expected BufferToBytesSafe to return ERR_BUFFER_TOO_LARGE")
 	}
+	// Must restore default buffer maximum to avoid breaking other tests
+	SetDefaultBufferMaximum(DefaultBufferMaximum)
 }
 
 func TestNullChecks(t *testing.T) {
@@ -266,6 +253,12 @@ func TestNullChecks(t *testing.T) {
 	if BytesToBuffer(nil, nil) != ERR_NULL_PTR {
 		t.Error("Expected BytesToBuffer to return ERR_NULL_PTR")
 	}
+	if BufferToJsonStruct(nil, nil) != ERR_NULL_PTR {
+		t.Error("Expected BufferToJsonSafe to return ERR_NULL_PTR")
+	}
+	if BufferToJsonStructSafe(nil, nil) != ERR_NULL_PTR {
+		t.Error("Expected BufferToJsonSafe to return ERR_NULL_PTR")
+	}
 }
 
 func TestCStr(t *testing.T) {
@@ -273,5 +266,45 @@ func TestCStr(t *testing.T) {
 	ptr := CPtr(&bytes)
 	if ptr == nil {
 		t.Error("CPtr returned nil")
+	}
+}
+
+type MyStruct struct {
+	Name1 string `json:"name1"`
+	Name2 string `json:"name2"`
+}
+
+func TestJson(t *testing.T) {
+	// Convert testJson string into MyStruct
+	input := testAllocateStringBuffer(t, testJson)
+	mystruct := &MyStruct{}
+	result := BufferToJsonStructSafe(&input, mystruct)
+	if result != ERR_NONE {
+		t.Errorf("BufferToJsonStructSafe returned %v", result)
+	}
+	if mystruct.Name1 != "value1" {
+		t.Error("Expected mystruct.Name1 == value1")
+	}
+	if mystruct.Name2 != "value2" {
+		t.Error("Expected mystruct.Name2 == value2")
+	}
+
+	// Convert MyStruct to Cobhan buffer
+	output := AllocateBuffer(4096)
+	result = JsonToBufferSafe(mystruct, &output)
+	if result != ERR_NONE {
+		t.Errorf("JsonToBufferSafe returned %v", result)
+	}
+
+	// Convert Cobhan buffer to unstructured JSON map
+	jsonMap, result := BufferToJsonSafe(&output)
+	if result != ERR_NONE {
+		t.Errorf("BufferToJsonSafe returned %v", result)
+	}
+	if jsonMap["name1"] != "value1" {
+		t.Errorf("jsonMap[name1] expected value1 got %v", jsonMap["name1"])
+	}
+	if jsonMap["name2"] != "value2" {
+		t.Errorf("jsonMap[name2] expected value2 got %v", jsonMap["name2"])
 	}
 }
