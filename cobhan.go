@@ -41,10 +41,12 @@ const ERR_WRITE_TEMP_FILE_FAILED = -9
 
 const BUFFER_HEADER_SIZE = (64 / 8) // 64 bit buffer header provides 8 byte alignment for data pointers
 
-var DefaultBufferMaximum = math.MaxInt32
+const DefaultBufferMaximum = math.MaxInt32
+
+var bufferMaximum = math.MaxInt32
 
 func SetDefaultBufferMaximum(max int) {
-	DefaultBufferMaximum = max
+	bufferMaximum = max
 }
 
 func CPtr(buf *[]byte) *C.char {
@@ -104,7 +106,7 @@ func updateBufferPtrLength(bufferPtr unsafe.Pointer, length int) {
 func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
 	length = 0 - length
 
-	if DefaultBufferMaximum < int(length) {
+	if bufferMaximum < int(length) {
 		return nil, ERR_BUFFER_TOO_LARGE
 	}
 
@@ -191,7 +193,7 @@ func BufferToBytes(srcPtr unsafe.Pointer) ([]byte, int32) {
 	}
 	length := bufferPtrToLength(srcPtr)
 
-	if DefaultBufferMaximum < int(length) {
+	if bufferMaximum < int(length) {
 		return nil, ERR_BUFFER_TOO_LARGE
 	}
 
@@ -215,7 +217,7 @@ func BufferToString(srcPtr unsafe.Pointer) (string, int32) {
 	}
 	length := bufferPtrToLength(srcPtr)
 
-	if DefaultBufferMaximum < int(length) {
+	if bufferMaximum < int(length) {
 		return "", ERR_BUFFER_TOO_LARGE
 	}
 
@@ -252,6 +254,29 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 		return nil, ERR_JSON_DECODE_FAILED
 	}
 	return loadedJson.(map[string]interface{}), ERR_NONE
+}
+
+func BufferToJsonStruct(srcPtr unsafe.Pointer, dst interface{}) int32 {
+	if srcPtr == nil {
+		return ERR_NULL_PTR
+	}
+	bytes, result := BufferToBytes(srcPtr)
+	if result < 0 {
+		return result
+	}
+
+	err := json.Unmarshal(bytes, dst)
+	if err != nil {
+		return ERR_JSON_DECODE_FAILED
+	}
+	return ERR_NONE
+}
+
+func BufferToJsonStructSafe(src *[]byte, dst interface{}) int32 {
+	if src == nil {
+		return ERR_NULL_PTR
+	}
+	return BufferToJsonStruct(Ptr(src), dst)
 }
 
 func StringToBufferSafe(str string, dst *[]byte) int32 {
