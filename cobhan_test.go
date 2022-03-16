@@ -308,3 +308,27 @@ func TestJson(t *testing.T) {
 		t.Errorf("jsonMap[name2] expected value2 got %v", jsonMap["name2"])
 	}
 }
+
+func TestEnableTempFile(t *testing.T) {
+	// Disable the use of temp file buffers
+	AllowTempFileBuffers(true)
+
+	ninetyChars := "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+	input := AllocateBuffer(88)
+	result := StringToBufferSafe(ninetyChars, &input)
+	if result == ERR_BUFFER_TOO_SMALL {
+		t.Error("Got ERR_BUFFER_TOO_SMALL")
+	}
+}
+
+func TestDisableTempFile(t *testing.T) {
+	// Disable the use of temp file buffers
+	AllowTempFileBuffers(false)
+
+	ninetyChars := "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+	input := AllocateBuffer(88)
+	result := StringToBufferSafe(ninetyChars, &input)
+	if result != ERR_BUFFER_TOO_SMALL {
+		t.Error("Expected ERR_BUFFER_TOO_SMALL")
+	}
+}

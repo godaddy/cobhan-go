@@ -45,8 +45,14 @@ const DefaultBufferMaximum = math.MaxInt32
 
 var bufferMaximum = math.MaxInt32
 
+var allowTempFileBuffers = true
+
 func SetDefaultBufferMaximum(max int) {
 	bufferMaximum = max
+}
+
+func AllowTempFileBuffers(flag bool) {
+	allowTempFileBuffers = flag
 }
 
 func CPtr(buf *[]byte) *C.char {
@@ -104,6 +110,10 @@ func updateBufferPtrLength(bufferPtr unsafe.Pointer, length int) {
 }
 
 func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
+	if !allowTempFileBuffers {
+		return nil, ERR_READ_TEMP_FILE_FAILED
+	}
+
 	length = 0 - length
 
 	if bufferMaximum < int(length) {
@@ -343,6 +353,10 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 	var result int
 	if dstCapInt < bytesLen {
 		// Output will not fit in supplied buffer
+
+		if !allowTempFileBuffers {
+			return ERR_BUFFER_TOO_SMALL
+		}
 
 		// Write the data to a temp file and copy the temp file name into the buffer
 		file, err := ioutil.TempFile("", "cobhan-*")
