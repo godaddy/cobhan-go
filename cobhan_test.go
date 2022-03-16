@@ -309,13 +309,17 @@ func TestJson(t *testing.T) {
 	}
 }
 
+const MaxPath = 4096
+
 func TestEnableTempFile(t *testing.T) {
 	// Disable the use of temp file buffers
 	AllowTempFileBuffers(true)
 
-	ninetyChars := "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-	input := AllocateBuffer(88)
-	result := StringToBufferSafe(ninetyChars, &input)
+	//Ensure temp file path could fit to make this test valid
+	const longStringLength = MaxPath + 1
+	longString := strings.Repeat("X", longStringLength)
+	input := AllocateBuffer(longStringLength - 2)
+	result := StringToBufferSafe(longString, &input)
 	if result == ERR_BUFFER_TOO_SMALL {
 		t.Error("Got ERR_BUFFER_TOO_SMALL")
 	}
@@ -325,9 +329,11 @@ func TestDisableTempFile(t *testing.T) {
 	// Disable the use of temp file buffers
 	AllowTempFileBuffers(false)
 
-	ninetyChars := "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-	input := AllocateBuffer(88)
-	result := StringToBufferSafe(ninetyChars, &input)
+	//Ensure temp file path could fit to make this test valid
+	const longStringLength = MaxPath + 1
+	longString := strings.Repeat("X", longStringLength)
+	input := AllocateBuffer(longStringLength - 2)
+	result := StringToBufferSafe(longString, &input)
 	if result != ERR_BUFFER_TOO_SMALL {
 		t.Error("Expected ERR_BUFFER_TOO_SMALL")
 	}
