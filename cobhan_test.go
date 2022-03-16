@@ -308,3 +308,33 @@ func TestJson(t *testing.T) {
 		t.Errorf("jsonMap[name2] expected value2 got %v", jsonMap["name2"])
 	}
 }
+
+const MaxPath = 4096
+
+func TestEnableTempFile(t *testing.T) {
+	// Disable the use of temp file buffers
+	AllowTempFileBuffers(true)
+
+	//Ensure temp file path could fit to make this test valid
+	const longStringLength = MaxPath + 1
+	longString := strings.Repeat("X", longStringLength)
+	input := AllocateBuffer(longStringLength - 2)
+	result := StringToBufferSafe(longString, &input)
+	if result == ERR_BUFFER_TOO_SMALL {
+		t.Error("Got ERR_BUFFER_TOO_SMALL")
+	}
+}
+
+func TestDisableTempFile(t *testing.T) {
+	// Disable the use of temp file buffers
+	AllowTempFileBuffers(false)
+
+	//Ensure temp file path could fit to make this test valid
+	const longStringLength = MaxPath + 1
+	longString := strings.Repeat("X", longStringLength)
+	input := AllocateBuffer(longStringLength - 2)
+	result := StringToBufferSafe(longString, &input)
+	if result != ERR_BUFFER_TOO_SMALL {
+		t.Error("Expected ERR_BUFFER_TOO_SMALL")
+	}
+}
