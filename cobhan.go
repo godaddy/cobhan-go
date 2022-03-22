@@ -100,8 +100,7 @@ func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
 }
 
 func bufferPtrToBytes(bufferPtr unsafe.Pointer, length C.int) []byte {
-	dataPtr := bufferPtrToDataPtr(bufferPtr)
-	return C.GoBytes(dataPtr, length)
+	return unsafe.Slice((*byte)(bufferPtrToDataPtr(bufferPtr)), length)
 }
 
 func updateBufferPtrLength(bufferPtr unsafe.Pointer, length int) {
