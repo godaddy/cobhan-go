@@ -3,7 +3,6 @@ package cobhan
 import (
 	"C"
 	"encoding/json"
-	"io/ioutil"
 	"math"
 	"os"
 	"unsafe"
@@ -63,12 +62,14 @@ func Ptr(buf *[]byte) unsafe.Pointer {
 }
 
 func AllocateBuffer(length int) []byte {
+	//Allocation
 	buf := make([]byte, length+BUFFER_HEADER_SIZE)
 	updateBufferPtrLength(Ptr(&buf), length)
 	return buf
 }
 
 func AllocateStringBuffer(str string) ([]byte, int32) {
+	//Allocation
 	buf := AllocateBuffer(len(str))
 	result := StringToBufferSafe(str, &buf)
 	if result != ERR_NONE {
@@ -78,6 +79,7 @@ func AllocateStringBuffer(str string) ([]byte, int32) {
 }
 
 func AllocateBytesBuffer(bytes []byte) ([]byte, int32) {
+	//Allocation
 	buf := AllocateBuffer(len(bytes))
 	result := BytesToBufferSafe(bytes, &buf)
 	if result != ERR_NONE {
@@ -96,6 +98,7 @@ func bufferPtrToDataPtr(bufferPtr unsafe.Pointer) unsafe.Pointer {
 
 func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
 	dataPtr := bufferPtrToDataPtr(bufferPtr)
+	//Allocation
 	return C.GoStringN((*C.char)(dataPtr), length)
 }
 
@@ -119,7 +122,7 @@ func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
 	}
 
 	fileName := bufferPtrToString(ptr, length)
-	fileData, err := ioutil.ReadFile(fileName)
+	fileData, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, ERR_READ_TEMP_FILE_FAILED //TODO: Temp file read error
 	}
@@ -312,6 +315,7 @@ func JsonToBuffer(v interface{}, dstPtr unsafe.Pointer) int32 {
 	if dstPtr == nil {
 		return ERR_NULL_PTR
 	}
+
 	outputBytes, err := json.Marshal(v)
 	if err != nil {
 		return ERR_JSON_ENCODE_FAILED
@@ -347,7 +351,7 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 		}
 
 		// Write the data to a temp file and copy the temp file name into the buffer
-		file, err := ioutil.TempFile("", "cobhan-*")
+		file, err := os.CreateTemp("", "cobhan-*")
 		if err != nil {
 			return ERR_WRITE_TEMP_FILE_FAILED
 		}
@@ -393,4 +397,31 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 	updateBufferPtrLength(dstPtr, result)
 
 	return ERR_NONE
+}
+
+func cobhanErrorToString(cobhanError int32) string {
+	switch cobhanError {
+	case ERR_NONE:
+		return "ERR_NONE"
+	case ERR_BUFFER_TOO_SMALL:
+		return "ERR_BUFFER_TOO_SMALL"
+	case ERR_BUFFER_TOO_LARGE:
+		return "ERR_BUFFER_TOO_LARGE"
+	case ERR_COPY_FAILED:
+		return "ERR_COPY_FAILED"
+	case ERR_INVALID_UTF8:
+		return "ERR_INVALID_UTF8"
+	case ERR_JSON_DECODE_FAILED:
+		return "ERR_JSON_DECODE_FAILED"
+	case ERR_JSON_ENCODE_FAILED:
+		return "ERR_JSON_ENCODE_FAILED"
+	case ERR_READ_TEMP_FILE_FAILED:
+		return "ERR_READ_TEMP_FILE_FAILED"
+	case ERR_WRITE_TEMP_FILE_FAILED:
+		return "ERR_WRITE_TEMP_FILE_FAILED"
+	case ERR_NULL_PTR:
+		return "ERR_NULL_PTR"
+	default:
+		return "UNKNOWN"
+	}
 }
