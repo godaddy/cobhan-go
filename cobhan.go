@@ -399,7 +399,7 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 	return ERR_NONE
 }
 
-func cobhanErrorToString(cobhanError int32) string {
+func CobhanErrorToString(cobhanError int32) string {
 	switch cobhanError {
 	case ERR_NONE:
 		return "ERR_NONE"
