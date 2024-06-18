@@ -68,9 +68,9 @@ func TestStringRoundTripTemp(t *testing.T) {
 		t.Errorf("Expected %v got %v", input, output)
 	}
 
-  if _, err := os.Stat(fileName); !errors.Is(err, os.ErrNotExist) {
-    t.Errorf("Temporary file %v was not deleted", fileName)
-  }
+	if _, err := os.Stat(fileName); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Temporary file %v was not deleted", fileName)
+	}
 }
 
 func TestStringRoundTripTempDoesNotFit(t *testing.T) {
