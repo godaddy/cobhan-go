@@ -2,6 +2,9 @@ package cobhan
 
 import (
 	"bytes"
+	"encoding/binary"
+	"errors"
+	"os"
 	"strings"
 	"testing"
 )
@@ -37,15 +40,25 @@ func TestStringRoundTrip(t *testing.T) {
 func TestStringRoundTripTemp(t *testing.T) {
 	// Make the string large enough to hold any rational temp file name
 	const stringSize = 16384
+
 	// Allocate a buffer too small for the input string
 	buf := AllocateBuffer(stringSize - 1)
+
 	// Allocate a string larger than the buffer so we use a temp file
 	input := strings.Repeat("X", stringSize)
+
 	// Should succeed because we can use a temp file and store the file name instead
 	result := StringToBufferSafe(input, &buf)
 	if result != ERR_NONE {
 		t.Errorf("StringToBufferSafe returned %v", result)
 	}
+
+	// Capture the file name from the buffer
+	var fileNameLen int32
+	reader := bytes.NewReader(buf)
+	binary.Read(reader, binary.LittleEndian, &fileNameLen)
+	reader.Seek(int64(BUFFER_HEADER_SIZE), 0)
+	fileName := string(buf[BUFFER_HEADER_SIZE:BUFFER_HEADER_SIZE-fileNameLen])
 
 	output, result := BufferToStringSafe(&buf)
 	if result != 0 {
@@ -53,6 +66,10 @@ func TestStringRoundTripTemp(t *testing.T) {
 	}
 	if output != input {
 		t.Errorf("Expected %v got %v", input, output)
+	}
+
+	if _, err := os.Stat(fileName); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Temporary file %v was not deleted", fileName)
 	}
 }
 
