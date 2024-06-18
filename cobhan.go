@@ -127,7 +127,7 @@ func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
 		return nil, ERR_READ_TEMP_FILE_FAILED //TODO: Temp file read error
 	}
 
-  os.Remove(fileName) // Ignore delete error
+	os.Remove(fileName) // Ignore delete error
 
 	return fileData, ERR_NONE
 }
