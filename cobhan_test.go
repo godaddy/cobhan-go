@@ -53,12 +53,12 @@ func TestStringRoundTripTemp(t *testing.T) {
 		t.Errorf("StringToBufferSafe returned %v", result)
 	}
 
-  // Capture the file name from the buffer
-  var fileNameLen int32
-  reader := bytes.NewReader(buf)
-  binary.Read(reader, binary.LittleEndian, &fileNameLen)
-  reader.Seek(int64(BUFFER_HEADER_SIZE), 0)
-  fileName := string(buf[BUFFER_HEADER_SIZE:BUFFER_HEADER_SIZE-fileNameLen])
+	// Capture the file name from the buffer
+	var fileNameLen int32
+	reader := bytes.NewReader(buf)
+	binary.Read(reader, binary.LittleEndian, &fileNameLen)
+	reader.Seek(int64(BUFFER_HEADER_SIZE), 0)
+	fileName := string(buf[BUFFER_HEADER_SIZE:BUFFER_HEADER_SIZE-fileNameLen])
 
 	output, result := BufferToStringSafe(&buf)
 	if result != 0 {
