@@ -342,6 +342,99 @@ func TestEnableTempFile(t *testing.T) {
 	}
 }
 
+func TestCopyBuffers(t *testing.T) {
+	CopyBuffers(true)
+	defer CopyBuffers(false)
+
+	input := []byte{1, 2, 3, 4}
+	buf := testAllocateBytesBuffer(t, input)
+
+	output, result := BufferToBytesSafe(&buf)
+	if result != ERR_NONE {
+		t.Errorf("BufferToBytesSafe returned %v", result)
+	}
+
+	if !bytes.Equal(input, output) {
+		t.Error("Bytes don't match")
+	}
+
+	// Verify it's a copy by modifying the output and checking the buffer is unchanged
+	output[0] = 99
+	output2, result := BufferToBytesSafe(&buf)
+	if result != ERR_NONE {
+		t.Errorf("BufferToBytesSafe returned %v", result)
+	}
+	if output2[0] != 1 {
+		t.Error("Expected copy semantics but buffer was modified")
+	}
+}
+
+func TestBufferLength(t *testing.T) {
+	buf := AllocateBuffer(42)
+	if BufferLengthSafe(&buf) != 42 {
+		t.Errorf("Expected 42, got %v", BufferLengthSafe(&buf))
+	}
+
+	// After writing data, length should reflect actual data length
+	input := "hello"
+	buf2 := testAllocateStringBuffer(t, input)
+	if BufferLengthSafe(&buf2) != int32(len(input)) {
+		t.Errorf("Expected %v, got %v", len(input), BufferLengthSafe(&buf2))
+	}
+
+	// Nil should return 0
+	if BufferLength(nil) != 0 {
+		t.Error("Expected BufferLength to return 0 for nil")
+	}
+	if BufferLengthSafe(nil) != 0 {
+		t.Error("Expected BufferLengthSafe to return 0 for nil")
+	}
+}
+
+func TestIsBufferAllNulls(t *testing.T) {
+	// Buffer with all nulls should return true
+	buf := AllocateBuffer(4)
+	if !IsBufferAllNullsSafe(&buf) {
+		t.Error("Expected IsBufferAllNullsSafe to return true for all-null buffer")
+	}
+
+	// Buffer with real data should return false
+	input := []byte{1, 2, 3, 4}
+	buf2 := testAllocateBytesBuffer(t, input)
+	if IsBufferAllNullsSafe(&buf2) {
+		t.Error("Expected IsBufferAllNullsSafe to return false for non-null buffer")
+	}
+
+	// Zero-length buffer should return false (not a false positive)
+	buf3 := AllocateBuffer(0)
+	if IsBufferAllNullsSafe(&buf3) {
+		t.Error("Expected IsBufferAllNullsSafe to return false for zero-length buffer")
+	}
+
+	// Large buffer with nulls in first 64 bytes but data after should still return true
+	buf4 := AllocateBuffer(128)
+	// Set byte at offset 65 to non-zero (beyond the 64-byte check window)
+	buf4[BUFFER_HEADER_SIZE+65] = 0xFF
+	if !IsBufferAllNullsSafe(&buf4) {
+		t.Error("Expected IsBufferAllNullsSafe to return true when only first 64 bytes are checked")
+	}
+
+	// Buffer with non-null byte within the first 64 bytes should return false
+	buf5 := AllocateBuffer(128)
+	buf5[BUFFER_HEADER_SIZE+32] = 0xFF
+	if IsBufferAllNullsSafe(&buf5) {
+		t.Error("Expected IsBufferAllNullsSafe to return false when non-null byte is within first 64 bytes")
+	}
+
+	// Nil should return false
+	if IsBufferAllNulls(nil) {
+		t.Error("Expected IsBufferAllNulls to return false for nil")
+	}
+	if IsBufferAllNullsSafe(nil) {
+		t.Error("Expected IsBufferAllNullsSafe to return false for nil")
+	}
+}
+
 func TestDisableTempFile(t *testing.T) {
 	// Disable the use of temp file buffers
 	AllowTempFileBuffers(false)
