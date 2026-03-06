@@ -45,12 +45,18 @@ var bufferMaximum = math.MaxInt32
 
 var allowTempFileBuffers = true
 
+var copyBuffers = false
+
 func SetDefaultBufferMaximum(max int) {
 	bufferMaximum = max
 }
 
 func AllowTempFileBuffers(flag bool) {
 	allowTempFileBuffers = flag
+}
+
+func CopyBuffers(flag bool) {
+	copyBuffers = flag
 }
 
 func CPtr(buf *[]byte) *C.char {
@@ -102,8 +108,16 @@ func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
 	return C.GoStringN((*C.char)(dataPtr), length)
 }
 
-func bufferPtrToBytes(bufferPtr unsafe.Pointer, length C.int) []byte {
-	return unsafe.Slice((*byte)(bufferPtrToDataPtr(bufferPtr)), length)
+func bufferPtrToBytes(bufferPtr unsafe.Pointer, length C.int) ([]byte, int32) {
+	src := unsafe.Slice((*byte)(bufferPtrToDataPtr(bufferPtr)), length)
+
+	if copyBuffers {
+		dst := make([]byte, length)
+		copy(dst, src)
+		return dst, ERR_NONE
+	}
+
+	return src, ERR_NONE
 }
 
 func updateBufferPtrLength(bufferPtr unsafe.Pointer, length int) {
@@ -194,6 +208,34 @@ func Int32ToBufferSafe(value int32, dst *[]byte) int32 {
 	return 0
 }
 
+func IsBufferAllNulls(srcPtr unsafe.Pointer) bool {
+	if srcPtr == nil {
+		return false
+	}
+	length := bufferPtrToLength(srcPtr)
+	if length <= 0 {
+		return false
+	}
+	checkLen := int(length)
+	if checkLen > 64 {
+		checkLen = 64
+	}
+	src := unsafe.Slice((*byte)(bufferPtrToDataPtr(srcPtr)), checkLen)
+	for _, b := range src {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func IsBufferAllNullsSafe(src *[]byte) bool {
+	if src == nil {
+		return false
+	}
+	return IsBufferAllNulls(Ptr(src))
+}
+
 func BufferToBytesSafe(src *[]byte) ([]byte, int32) {
 	if src == nil {
 		return nil, ERR_NULL_PTR
@@ -212,7 +254,7 @@ func BufferToBytes(srcPtr unsafe.Pointer) ([]byte, int32) {
 	}
 
 	if length >= 0 {
-		return bufferPtrToBytes(srcPtr, length), ERR_NONE
+		return bufferPtrToBytes(srcPtr, length)
 	} else {
 		return tempToBytes(srcPtr, length)
 	}
