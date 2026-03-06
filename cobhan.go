@@ -208,6 +208,20 @@ func Int32ToBufferSafe(value int32, dst *[]byte) int32 {
 	return 0
 }
 
+func BufferLength(srcPtr unsafe.Pointer) int32 {
+	if srcPtr == nil {
+		return 0
+	}
+	return int32(bufferPtrToLength(srcPtr))
+}
+
+func BufferLengthSafe(src *[]byte) int32 {
+	if src == nil {
+		return 0
+	}
+	return BufferLength(Ptr(src))
+}
+
 func IsBufferAllNulls(srcPtr unsafe.Pointer) bool {
 	if srcPtr == nil {
 		return false

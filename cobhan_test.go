@@ -369,6 +369,28 @@ func TestCopyBuffers(t *testing.T) {
 	}
 }
 
+func TestBufferLength(t *testing.T) {
+	buf := AllocateBuffer(42)
+	if BufferLengthSafe(&buf) != 42 {
+		t.Errorf("Expected 42, got %v", BufferLengthSafe(&buf))
+	}
+
+	// After writing data, length should reflect actual data length
+	input := "hello"
+	buf2 := testAllocateStringBuffer(t, input)
+	if BufferLengthSafe(&buf2) != int32(len(input)) {
+		t.Errorf("Expected %v, got %v", len(input), BufferLengthSafe(&buf2))
+	}
+
+	// Nil should return 0
+	if BufferLength(nil) != 0 {
+		t.Error("Expected BufferLength to return 0 for nil")
+	}
+	if BufferLengthSafe(nil) != 0 {
+		t.Error("Expected BufferLengthSafe to return 0 for nil")
+	}
+}
+
 func TestIsBufferAllNulls(t *testing.T) {
 	// Buffer with all nulls should return true
 	buf := AllocateBuffer(4)
