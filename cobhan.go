@@ -103,12 +103,28 @@ func bufferPtrToDataPtr(bufferPtr unsafe.Pointer) unsafe.Pointer {
 }
 
 func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
+	// Computing a data pointer via uintptr(p)+offset past a zero-length
+	// (header-only) buffer is invalid pointer arithmetic under checkptr
+	// (go test -race), even though nothing would be read. Skip it entirely
+	// when there's nothing to read.
+	if length == 0 {
+		return ""
+	}
 	dataPtr := bufferPtrToDataPtr(bufferPtr)
 	//Allocation
 	return C.GoStringN((*C.char)(dataPtr), length)
 }
 
 func bufferPtrToBytes(bufferPtr unsafe.Pointer, length C.int) ([]byte, int32) {
+	// See bufferPtrToString: a zero-length buffer must not compute a data
+	// pointer via bufferPtrToDataPtr at all under checkptr.
+	if length == 0 {
+		if copyBuffers {
+			return []byte{}, ERR_NONE
+		}
+		return nil, ERR_NONE
+	}
+
 	src := unsafe.Slice((*byte)(bufferPtrToDataPtr(bufferPtr)), length)
 
 	if copyBuffers {
@@ -399,8 +415,19 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 	dstCapInt := int(dstCap)
 	bytesLen := len(bytes)
 
-	// Construct a byte slice out of the unsafe pointers
-	var dst []byte = unsafe.Slice((*byte)(bufferPtrToDataPtr(dstPtr)), dstCapInt)
+	// Construct a byte slice out of the unsafe pointers. Only do this when
+	// there's an actual destination to write into: computing a pointer via
+	// uintptr(p)+offset past a zero-capacity (header-only) buffer -- even
+	// one that's never dereferenced -- is invalid pointer arithmetic that
+	// checkptr flags under `go test -race`. When dstCapInt is 0, dst stays
+	// nil; copy(nil, x) is always a valid no-op copying zero bytes, and the
+	// only way to reach the "else" branch below with dstCapInt == 0 is when
+	// bytesLen is also 0 (the dstCapInt < bytesLen branch is taken
+	// otherwise), so nothing is ever lost.
+	var dst []byte
+	if dstCapInt > 0 {
+		dst = unsafe.Slice((*byte)(bufferPtrToDataPtr(dstPtr)), dstCapInt)
+	}
 	var result int
 	if dstCapInt < bytesLen {
 		// Output will not fit in supplied buffer

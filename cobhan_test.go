@@ -37,6 +37,27 @@ func TestStringRoundTrip(t *testing.T) {
 	}
 }
 
+// TestEmptyStringRoundTrip guards against a checkptr violation: allocating a
+// buffer for a zero-length string, then writing to and reading back from it,
+// computes a data pointer exactly one byte past the end of the (header-only)
+// allocation via bufferPtrToDataPtr's raw pointer arithmetic. That pointer is
+// never dereferenced for a zero-length value, but forming it via
+// uintptr(p)+offset (rather than Go's slice-indexing machinery) is exactly
+// what checkptr flags as invalid, crashing the whole process with "fatal
+// error: checkptr: pointer arithmetic result points to invalid allocation"
+// under `go test -race`. Run this test with -race to catch a regression.
+func TestEmptyStringRoundTrip(t *testing.T) {
+	input := ""
+	buf := testAllocateStringBuffer(t, input)
+	output, result := BufferToStringSafe(&buf)
+	if result != ERR_NONE {
+		t.Errorf("BufferToStringSafe returned %v", result)
+	}
+	if output != input {
+		t.Errorf("Expected %q got %q", input, output)
+	}
+}
+
 func TestStringRoundTripTemp(t *testing.T) {
 	// Make the string large enough to hold any rational temp file name
 	const stringSize = 16384
@@ -133,6 +154,21 @@ func TestBytesRoundTrip(t *testing.T) {
 
 	if !bytes.Equal(bytes1, bytes2) {
 		t.Error("Bytes don't match")
+	}
+}
+
+// TestEmptyBytesRoundTrip is the []byte counterpart of
+// TestEmptyStringRoundTrip -- see that test's comment for why a zero-length
+// buffer is a checkptr hazard under `go test -race`.
+func TestEmptyBytesRoundTrip(t *testing.T) {
+	bytes1 := []byte{}
+	buf := testAllocateBytesBuffer(t, bytes1)
+	bytes2, result := BufferToBytesSafe(&buf)
+	if result != ERR_NONE {
+		t.Errorf("BufferToBytesSafe returned %v", result)
+	}
+	if len(bytes2) != 0 {
+		t.Errorf("Expected empty result, got %v", bytes2)
 	}
 }
 
