@@ -130,6 +130,11 @@ func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
 	}
 
 	length = 0 - length
+	if length < 0 {
+		// Only math.MinInt32 negates to itself (two's complement overflow).
+		// There's no valid filename-length encoding for it.
+		return nil, ERR_READ_TEMP_FILE_FAILED
+	}
 
 	if bufferMaximum < int(length) {
 		return nil, ERR_BUFFER_TOO_LARGE
