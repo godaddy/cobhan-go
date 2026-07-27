@@ -153,8 +153,7 @@ func Int64ToBufferSafe(value int64, dst *[]byte) int32 {
 	if dst == nil {
 		return ERR_NULL_PTR
 	}
-	Int64ToBuffer(value, Ptr(dst))
-	return 0
+	return Int64ToBuffer(value, Ptr(dst))
 }
 
 func BufferToInt64Safe(src *[]byte) (int64, int32) {
@@ -198,8 +197,7 @@ func Int32ToBufferSafe(value int32, dst *[]byte) int32 {
 	if dst == nil {
 		return ERR_NULL_PTR
 	}
-	Int32ToBuffer(value, Ptr(dst))
-	return 0
+	return Int32ToBuffer(value, Ptr(dst))
 }
 
 func BufferLength(srcPtr unsafe.Pointer) int32 {
