@@ -60,7 +60,7 @@ func TestStringRoundTripTemp(t *testing.T) {
 	reader := bytes.NewReader(buf)
 	binary.Read(reader, binary.LittleEndian, &fileNameLen)
 	reader.Seek(int64(BUFFER_HEADER_SIZE), 0)
-	fileName := string(buf[BUFFER_HEADER_SIZE:BUFFER_HEADER_SIZE-fileNameLen])
+	fileName := string(buf[BUFFER_HEADER_SIZE : BUFFER_HEADER_SIZE-fileNameLen])
 
 	output, result := BufferToStringSafe(&buf)
 	if result != 0 {
@@ -546,11 +546,11 @@ func FuzzBufferToJsonStruct(f *testing.F) {
 // which is exactly the threat model the ERR_BUFFER_TOO_LARGE/ERR_BUFFER_TOO_SMALL
 // error codes exist for.
 func FuzzRawBufferHeader(f *testing.F) {
-	f.Add(int32(0), []byte{})
-	f.Add(int32(4), []byte{1, 2, 3, 4})
-	f.Add(int32(-1), []byte{})
-	f.Add(int32(math.MinInt32), []byte{})
-	f.Add(int32(math.MaxInt32), []byte{})
+	f.Add(int32(0), []byte{})                        // well-formed empty buffer
+	f.Add(int32(4), []byte{1, 2, 3, 4})              // well-formed buffer
+	f.Add(int32(-1), []byte{1, 2, 3, 4})             // temp-file path, garbage filename
+	f.Add(int32(math.MinInt32), []byte{1, 2, 3, 4})  // negation overflow in tempToBytes
+	f.Add(int32(64), []byte{0xAA, 0xBB, 0xCC, 0xDD}) // header claims more data than exists
 	f.Fuzz(func(t *testing.T, header int32, payload []byte) {
 		buf := make([]byte, BUFFER_HEADER_SIZE+len(payload))
 		*(*int32)(unsafe.Pointer(&buf[0])) = header
@@ -559,9 +559,20 @@ func FuzzRawBufferHeader(f *testing.F) {
 		ptr := unsafe.Pointer(&buf[0])
 
 		// Must never panic or fatally crash the process regardless of what
-		// the header claims -- even a header that doesn't match the actual
-		// payload length must be rejected with an error code, not read out
-		// of bounds or attempt an unbounded allocation.
+		// the header claims, and must never hand back more data than was
+		// actually present -- even a header that overstates the payload
+		// length must be rejected with an error code, not read out of
+		// bounds or attempt an unbounded allocation.
+		if header >= 0 && int(header) > len(payload) {
+			if b, result := BufferToBytes(ptr); result == ERR_NONE {
+				t.Fatalf("BufferToBytes returned ERR_NONE with %d bytes but only %d bytes of payload existed (header=%d)", len(b), len(payload), header)
+			}
+			if s, result := BufferToString(ptr); result == ERR_NONE {
+				t.Fatalf("BufferToString returned ERR_NONE with a %d-byte string but only %d bytes of payload existed (header=%d)", len(s), len(payload), header)
+			}
+			return
+		}
+
 		BufferToBytes(ptr)
 		BufferToString(ptr)
 	})
