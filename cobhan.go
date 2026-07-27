@@ -103,12 +103,28 @@ func bufferPtrToDataPtr(bufferPtr unsafe.Pointer) unsafe.Pointer {
 }
 
 func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
+	if length == 0 {
+		// bufferPtrToDataPtr(bufferPtr) would point exactly one byte past
+		// the end of a header-only allocation; forming that pointer via
+		// raw uintptr arithmetic (rather than Go's slice-indexing, which
+		// is allowed to compute one-past-the-end addresses) is invalid
+		// under checkptr, even though it's never dereferenced.
+		return ""
+	}
 	dataPtr := bufferPtrToDataPtr(bufferPtr)
 	//Allocation
 	return C.GoStringN((*C.char)(dataPtr), length)
 }
 
 func bufferPtrToBytes(bufferPtr unsafe.Pointer, length C.int) ([]byte, int32) {
+	if length == 0 {
+		// See bufferPtrToString.
+		if copyBuffers {
+			return []byte{}, ERR_NONE
+		}
+		return nil, ERR_NONE
+	}
+
 	src := unsafe.Slice((*byte)(bufferPtrToDataPtr(bufferPtr)), length)
 
 	if copyBuffers {
@@ -410,8 +426,16 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 	dstCapInt := int(dstCap)
 	bytesLen := len(bytes)
 
-	// Construct a byte slice out of the unsafe pointers
-	var dst []byte = unsafe.Slice((*byte)(bufferPtrToDataPtr(dstPtr)), dstCapInt)
+	// Construct a byte slice out of the unsafe pointers. A zero-capacity
+	// destination is header-only; bufferPtrToDataPtr(dstPtr) would point
+	// exactly one byte past the end of that allocation, which checkptr
+	// flags as invalid even though it's never dereferenced -- avoid
+	// forming it at all and just use a nil slice (copy(nil, ...) is a
+	// valid no-op).
+	var dst []byte
+	if dstCapInt > 0 {
+		dst = unsafe.Slice((*byte)(bufferPtrToDataPtr(dstPtr)), dstCapInt)
+	}
 	var result int
 	if dstCapInt < bytesLen {
 		// Output will not fit in supplied buffer
