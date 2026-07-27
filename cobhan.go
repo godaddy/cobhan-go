@@ -75,13 +75,7 @@ func AllocateBuffer(length int) []byte {
 }
 
 func AllocateStringBuffer(str string) ([]byte, int32) {
-	//Allocation
-	buf := AllocateBuffer(len(str))
-	result := StringToBufferSafe(str, &buf)
-	if result != ERR_NONE {
-		return nil, result
-	}
-	return buf, ERR_NONE
+	return AllocateBytesBuffer([]byte(str))
 }
 
 func AllocateBytesBuffer(bytes []byte) ([]byte, int32) {
