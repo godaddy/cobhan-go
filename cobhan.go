@@ -222,10 +222,7 @@ func IsBufferAllNulls(srcPtr unsafe.Pointer) bool {
 	if length <= 0 {
 		return false
 	}
-	checkLen := int(length)
-	if checkLen > 64 {
-		checkLen = 64
-	}
+	checkLen := min(int(length), 64)
 	src := unsafe.Slice((*byte)(bufferPtrToDataPtr(srcPtr)), checkLen)
 	for _, b := range src {
 		if b != 0 {
