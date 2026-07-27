@@ -328,7 +328,13 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 	if err != nil {
 		return nil, ERR_JSON_DECODE_FAILED
 	}
-	return loadedJson.(map[string]interface{}), ERR_NONE
+	jsonMap, ok := loadedJson.(map[string]interface{})
+	if !ok {
+		// Valid JSON, but the top-level value isn't an object (e.g. an
+		// array, string, number, bool, or null).
+		return nil, ERR_JSON_DECODE_FAILED
+	}
+	return jsonMap, ERR_NONE
 }
 
 func BufferToJsonStruct(srcPtr unsafe.Pointer, dst interface{}) int32 {
