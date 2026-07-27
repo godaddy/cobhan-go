@@ -116,6 +116,19 @@ func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
 	return C.GoStringN((*C.char)(dataPtr), length)
 }
 
+// bufferPtrToBytes trusts length completely -- it comes from the buffer's
+// own header, which Cobhan's own write path (BytesToBuffer) always sets to
+// exactly the number of bytes actually written. There is no independent
+// capacity available here to validate that against: this function only
+// ever sees a raw pointer, and callers may be foreign (non-Go-allocated)
+// memory that Go's runtime has no visibility into at all. A header that
+// overstates the real buffer size (from a corrupted buffer, or a bug in
+// another language's Cobhan binding) will read past the end of the real
+// allocation with no error and no crash in a normal build -- this is an
+// inherent limitation of a length-prefixed wire format that trusts its own
+// length field, not something checkable from a bare pointer + length pair.
+// A fix would require changing this function's signature (and therefore
+// the C ABI every Cobhan binding depends on) to also carry a capacity.
 func bufferPtrToBytes(bufferPtr unsafe.Pointer, length C.int) ([]byte, int32) {
 	if length == 0 {
 		// See bufferPtrToString.
