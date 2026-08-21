@@ -93,7 +93,7 @@ func bufferPtrToLength(bufferPtr unsafe.Pointer) C.int {
 }
 
 func bufferPtrToDataPtr(bufferPtr unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(bufferPtr) + BUFFER_HEADER_SIZE)
+	return unsafe.Add(bufferPtr, BUFFER_HEADER_SIZE)
 }
 
 func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
@@ -325,14 +325,14 @@ func BufferToString(srcPtr unsafe.Pointer) (string, int32) {
 	}
 }
 
-func BufferToJsonSafe(src *[]byte) (map[string]interface{}, int32) {
+func BufferToJsonSafe(src *[]byte) (map[string]any, int32) {
 	if src == nil {
 		return nil, ERR_NULL_PTR
 	}
 	return BufferToJson(Ptr(src))
 }
 
-func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
+func BufferToJson(srcPtr unsafe.Pointer) (map[string]any, int32) {
 	if srcPtr == nil {
 		return nil, ERR_NULL_PTR
 	}
@@ -341,12 +341,12 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 		return nil, result
 	}
 
-	var loadedJson interface{}
+	var loadedJson any
 	err := json.Unmarshal(bytes, &loadedJson)
 	if err != nil {
 		return nil, ERR_JSON_DECODE_FAILED
 	}
-	jsonMap, ok := loadedJson.(map[string]interface{})
+	jsonMap, ok := loadedJson.(map[string]any)
 	if !ok {
 		// Valid JSON, but the top-level value isn't an object (e.g. an
 		// array, string, number, bool, or null).
@@ -355,7 +355,7 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 	return jsonMap, ERR_NONE
 }
 
-func BufferToJsonStruct(srcPtr unsafe.Pointer, dst interface{}) int32 {
+func BufferToJsonStruct(srcPtr unsafe.Pointer, dst any) int32 {
 	if srcPtr == nil {
 		return ERR_NULL_PTR
 	}
@@ -371,7 +371,7 @@ func BufferToJsonStruct(srcPtr unsafe.Pointer, dst interface{}) int32 {
 	return ERR_NONE
 }
 
-func BufferToJsonStructSafe(src *[]byte, dst interface{}) int32 {
+func BufferToJsonStructSafe(src *[]byte, dst any) int32 {
 	if src == nil {
 		return ERR_NULL_PTR
 	}
@@ -392,14 +392,14 @@ func StringToBuffer(str string, dstPtr unsafe.Pointer) int32 {
 	return BytesToBuffer([]byte(str), dstPtr)
 }
 
-func JsonToBufferSafe(v interface{}, dst *[]byte) int32 {
+func JsonToBufferSafe(v any, dst *[]byte) int32 {
 	if dst == nil {
 		return ERR_NULL_PTR
 	}
 	return JsonToBuffer(v, Ptr(dst))
 }
 
-func JsonToBuffer(v interface{}, dstPtr unsafe.Pointer) int32 {
+func JsonToBuffer(v any, dstPtr unsafe.Pointer) int32 {
 	if dstPtr == nil {
 		return ERR_NULL_PTR
 	}
