@@ -1,2 +1,2 @@
 #!/bin/bash
-go test -v -failfast -coverprofile cover.out
+go test -race -v -failfast -coverprofile cover.out
