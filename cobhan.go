@@ -97,12 +97,41 @@ func bufferPtrToDataPtr(bufferPtr unsafe.Pointer) unsafe.Pointer {
 }
 
 func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
+	if length == 0 {
+		// bufferPtrToDataPtr(bufferPtr) would point exactly one byte past
+		// the end of a header-only allocation; forming that pointer via
+		// raw uintptr arithmetic (rather than Go's slice-indexing, which
+		// is allowed to compute one-past-the-end addresses) is invalid
+		// under checkptr, even though it's never dereferenced.
+		return ""
+	}
 	dataPtr := bufferPtrToDataPtr(bufferPtr)
 	//Allocation
 	return C.GoStringN((*C.char)(dataPtr), length)
 }
 
+// bufferPtrToBytes trusts length completely -- it comes from the buffer's
+// own header, which Cobhan's own write path (BytesToBuffer) always sets to
+// exactly the number of bytes actually written. There is no independent
+// capacity available here to validate that against: this function only
+// ever sees a raw pointer, and callers may be foreign (non-Go-allocated)
+// memory that Go's runtime has no visibility into at all. A header that
+// overstates the real buffer size (from a corrupted buffer, or a bug in
+// another language's Cobhan binding) will read past the end of the real
+// allocation with no error and no crash in a normal build -- this is an
+// inherent limitation of a length-prefixed wire format that trusts its own
+// length field, not something checkable from a bare pointer + length pair.
+// A fix would require changing this function's signature (and therefore
+// the C ABI every Cobhan binding depends on) to also carry a capacity.
 func bufferPtrToBytes(bufferPtr unsafe.Pointer, length C.int) ([]byte, int32) {
+	if length == 0 {
+		// See bufferPtrToString.
+		if copyBuffers {
+			return []byte{}, ERR_NONE
+		}
+		return nil, ERR_NONE
+	}
+
 	src := unsafe.Slice((*byte)(bufferPtrToDataPtr(bufferPtr)), length)
 
 	if copyBuffers {
@@ -124,6 +153,11 @@ func tempToBytes(ptr unsafe.Pointer, length C.int) ([]byte, int32) {
 	}
 
 	length = 0 - length
+	if length < 0 {
+		// Only math.MinInt32 negates to itself (two's complement overflow).
+		// There's no valid filename-length encoding for it.
+		return nil, ERR_READ_TEMP_FILE_FAILED
+	}
 
 	if bufferMaximum < int(length) {
 		return nil, ERR_BUFFER_TOO_LARGE
@@ -312,7 +346,13 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 	if err != nil {
 		return nil, ERR_JSON_DECODE_FAILED
 	}
-	return loadedJson.(map[string]interface{}), ERR_NONE
+	jsonMap, ok := loadedJson.(map[string]interface{})
+	if !ok {
+		// Valid JSON, but the top-level value isn't an object (e.g. an
+		// array, string, number, bool, or null).
+		return nil, ERR_JSON_DECODE_FAILED
+	}
+	return jsonMap, ERR_NONE
 }
 
 func BufferToJsonStruct(srcPtr unsafe.Pointer, dst interface{}) int32 {
@@ -388,8 +428,16 @@ func BytesToBuffer(bytes []byte, dstPtr unsafe.Pointer) int32 {
 	dstCapInt := int(dstCap)
 	bytesLen := len(bytes)
 
-	// Construct a byte slice out of the unsafe pointers
-	var dst []byte = unsafe.Slice((*byte)(bufferPtrToDataPtr(dstPtr)), dstCapInt)
+	// Construct a byte slice out of the unsafe pointers. A zero-capacity
+	// destination is header-only; bufferPtrToDataPtr(dstPtr) would point
+	// exactly one byte past the end of that allocation, which checkptr
+	// flags as invalid even though it's never dereferenced -- avoid
+	// forming it at all and just use a nil slice (copy(nil, ...) is a
+	// valid no-op).
+	var dst []byte
+	if dstCapInt > 0 {
+		dst = unsafe.Slice((*byte)(bufferPtrToDataPtr(dstPtr)), dstCapInt)
+	}
 	var result int
 	if dstCapInt < bytesLen {
 		// Output will not fit in supplied buffer

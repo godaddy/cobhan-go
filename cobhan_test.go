@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"math"
 	"os"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 func testAllocateStringBuffer(t *testing.T, str string) []byte {
@@ -58,7 +60,7 @@ func TestStringRoundTripTemp(t *testing.T) {
 	reader := bytes.NewReader(buf)
 	binary.Read(reader, binary.LittleEndian, &fileNameLen)
 	reader.Seek(int64(BUFFER_HEADER_SIZE), 0)
-	fileName := string(buf[BUFFER_HEADER_SIZE:BUFFER_HEADER_SIZE-fileNameLen])
+	fileName := string(buf[BUFFER_HEADER_SIZE : BUFFER_HEADER_SIZE-fileNameLen])
 
 	output, result := BufferToStringSafe(&buf)
 	if result != 0 {
@@ -447,4 +449,140 @@ func TestDisableTempFile(t *testing.T) {
 	if result != ERR_BUFFER_TOO_SMALL {
 		t.Error("Expected ERR_BUFFER_TOO_SMALL")
 	}
+}
+
+// --- Fuzz targets ---
+//
+// These target the Cobhan FFI boundary: buffers and length headers that, in
+// production, arrive from a foreign caller (C, Java, Python, Node, .NET...)
+// and cannot be trusted to be well-formed. Run with -race: several of the
+// bugs these are designed to catch only manifest under checkptr
+// instrumentation, which plain `go test` does not enable.
+//
+//   go test -race -fuzz=FuzzStringRoundTrip -fuzztime=60s
+
+func FuzzStringRoundTrip(f *testing.F) {
+	f.Add("")
+	f.Add("hello")
+	f.Add("world of strings")
+	f.Fuzz(func(t *testing.T, s string) {
+		buf, result := AllocateStringBuffer(s)
+		if result != ERR_NONE {
+			return
+		}
+		out, result := BufferToStringSafe(&buf)
+		if result != ERR_NONE {
+			t.Fatalf("BufferToStringSafe returned %v for input %q", result, s)
+		}
+		if out != s {
+			t.Fatalf("roundtrip mismatch: got %q want %q", out, s)
+		}
+	})
+}
+
+func FuzzBytesRoundTrip(f *testing.F) {
+	f.Add([]byte{})
+	f.Add([]byte{1, 2, 3, 4})
+	f.Fuzz(func(t *testing.T, b []byte) {
+		buf, result := AllocateBytesBuffer(b)
+		if result != ERR_NONE {
+			return
+		}
+		out, result := BufferToBytesSafe(&buf)
+		if result != ERR_NONE {
+			t.Fatalf("BufferToBytesSafe returned %v for input %v", result, b)
+		}
+		if !bytes.Equal(out, b) {
+			t.Fatalf("roundtrip mismatch: got %v want %v", out, b)
+		}
+	})
+}
+
+func FuzzBufferToJson(f *testing.F) {
+	f.Add([]byte(testJson))
+	f.Add([]byte("[1,2,3]"))
+	f.Add([]byte(`"just a string"`))
+	f.Add([]byte("42"))
+	f.Add([]byte("null"))
+	f.Add([]byte("true"))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		buf, result := AllocateBytesBuffer(data)
+		if result != ERR_NONE {
+			return
+		}
+		// Must never panic, regardless of whether data is valid JSON, valid
+		// JSON that isn't an object, or garbage -- only ERR_NONE or
+		// ERR_JSON_DECODE_FAILED are acceptable outcomes.
+		_, result = BufferToJsonSafe(&buf)
+		if result != ERR_NONE && result != ERR_JSON_DECODE_FAILED {
+			t.Fatalf("BufferToJsonSafe returned unexpected error %v for input %q", result, data)
+		}
+	})
+}
+
+func FuzzBufferToJsonStruct(f *testing.F) {
+	f.Add([]byte(testJson))
+	f.Add([]byte("[1,2,3]"))
+	f.Add([]byte(`"just a string"`))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		buf, result := AllocateBytesBuffer(data)
+		if result != ERR_NONE {
+			return
+		}
+		dst := &MyStruct{}
+		// Must never panic; ERR_NONE or ERR_JSON_DECODE_FAILED are the only
+		// acceptable outcomes.
+		result = BufferToJsonStructSafe(&buf, dst)
+		if result != ERR_NONE && result != ERR_JSON_DECODE_FAILED {
+			t.Fatalf("BufferToJsonStructSafe returned unexpected error %v for input %q", result, data)
+		}
+	})
+}
+
+// FuzzRawBufferHeader constructs a raw Cobhan buffer by hand -- an arbitrary
+// length header followed by arbitrary payload bytes -- bypassing
+// AllocateBuffer entirely. This simulates a foreign caller handing Go a
+// buffer with a header that doesn't match the actual data it allocated,
+// which is exactly the threat model the ERR_BUFFER_TOO_LARGE/ERR_BUFFER_TOO_SMALL
+// error codes exist for.
+//
+// A header claiming more data than the payload actually holds -- whether
+// directly (a non-negative header larger than len(payload)) or via the
+// temp-file-name-length encoding (a negative header whose negation is
+// larger than len(payload)) -- is deliberately excluded (via t.Skip
+// below), not exercised here: there is no independent capacity available
+// to validate the header against in bufferPtrToBytes/bufferPtrToString, so
+// a mismatch in that direction is an inherent, unfixable limitation of the
+// wire format rather than something this target can usefully assert on --
+// see the comment on bufferPtrToBytes. math.MinInt32 is the one exception:
+// its negation overflows back to itself, which tempToBytes explicitly
+// guards against, so it's always safe regardless of payload length and
+// must not be skipped (it's the regression case for that fix).
+func FuzzRawBufferHeader(f *testing.F) {
+	f.Add(int32(0), []byte{})                       // well-formed empty buffer
+	f.Add(int32(4), []byte{1, 2, 3, 4})             // well-formed buffer
+	f.Add(int32(-1), []byte{1, 2, 3, 4})            // temp-file path, garbage filename
+	f.Add(int32(math.MinInt32), []byte{1, 2, 3, 4}) // negation overflow in tempToBytes
+	f.Fuzz(func(t *testing.T, header int32, payload []byte) {
+		if header != math.MinInt32 {
+			claimedLen := int64(header)
+			if claimedLen < 0 {
+				claimedLen = -claimedLen
+			}
+			if claimedLen > int64(len(payload)) {
+				t.Skip("header claiming more data than the buffer actually holds is an accepted, unfixable limitation -- see bufferPtrToBytes")
+			}
+		}
+
+		buf := make([]byte, BUFFER_HEADER_SIZE+len(payload))
+		*(*int32)(unsafe.Pointer(&buf[0])) = header
+		copy(buf[BUFFER_HEADER_SIZE:], payload)
+
+		ptr := unsafe.Pointer(&buf[0])
+
+		// Must never panic or fatally crash the process for any header
+		// that's within the range this buffer can actually satisfy.
+		BufferToBytes(ptr)
+		BufferToString(ptr)
+	})
 }
