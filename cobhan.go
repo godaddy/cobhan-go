@@ -75,13 +75,7 @@ func AllocateBuffer(length int) []byte {
 }
 
 func AllocateStringBuffer(str string) ([]byte, int32) {
-	//Allocation
-	buf := AllocateBuffer(len(str))
-	result := StringToBufferSafe(str, &buf)
-	if result != ERR_NONE {
-		return nil, result
-	}
-	return buf, ERR_NONE
+	return AllocateBytesBuffer([]byte(str))
 }
 
 func AllocateBytesBuffer(bytes []byte) ([]byte, int32) {
@@ -99,7 +93,7 @@ func bufferPtrToLength(bufferPtr unsafe.Pointer) C.int {
 }
 
 func bufferPtrToDataPtr(bufferPtr unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(bufferPtr) + BUFFER_HEADER_SIZE)
+	return unsafe.Add(bufferPtr, BUFFER_HEADER_SIZE)
 }
 
 func bufferPtrToString(bufferPtr unsafe.Pointer, length C.int) string {
@@ -193,8 +187,7 @@ func Int64ToBufferSafe(value int64, dst *[]byte) int32 {
 	if dst == nil {
 		return ERR_NULL_PTR
 	}
-	Int64ToBuffer(value, Ptr(dst))
-	return 0
+	return Int64ToBuffer(value, Ptr(dst))
 }
 
 func BufferToInt64Safe(src *[]byte) (int64, int32) {
@@ -238,8 +231,7 @@ func Int32ToBufferSafe(value int32, dst *[]byte) int32 {
 	if dst == nil {
 		return ERR_NULL_PTR
 	}
-	Int32ToBuffer(value, Ptr(dst))
-	return 0
+	return Int32ToBuffer(value, Ptr(dst))
 }
 
 func BufferLength(srcPtr unsafe.Pointer) int32 {
@@ -264,10 +256,7 @@ func IsBufferAllNulls(srcPtr unsafe.Pointer) bool {
 	if length <= 0 {
 		return false
 	}
-	checkLen := int(length)
-	if checkLen > 64 {
-		checkLen = 64
-	}
+	checkLen := min(int(length), 64)
 	src := unsafe.Slice((*byte)(bufferPtrToDataPtr(srcPtr)), checkLen)
 	for _, b := range src {
 		if b != 0 {
@@ -336,14 +325,14 @@ func BufferToString(srcPtr unsafe.Pointer) (string, int32) {
 	}
 }
 
-func BufferToJsonSafe(src *[]byte) (map[string]interface{}, int32) {
+func BufferToJsonSafe(src *[]byte) (map[string]any, int32) {
 	if src == nil {
 		return nil, ERR_NULL_PTR
 	}
 	return BufferToJson(Ptr(src))
 }
 
-func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
+func BufferToJson(srcPtr unsafe.Pointer) (map[string]any, int32) {
 	if srcPtr == nil {
 		return nil, ERR_NULL_PTR
 	}
@@ -352,12 +341,12 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 		return nil, result
 	}
 
-	var loadedJson interface{}
+	var loadedJson any
 	err := json.Unmarshal(bytes, &loadedJson)
 	if err != nil {
 		return nil, ERR_JSON_DECODE_FAILED
 	}
-	jsonMap, ok := loadedJson.(map[string]interface{})
+	jsonMap, ok := loadedJson.(map[string]any)
 	if !ok {
 		// Valid JSON, but the top-level value isn't an object (e.g. an
 		// array, string, number, bool, or null).
@@ -366,7 +355,7 @@ func BufferToJson(srcPtr unsafe.Pointer) (map[string]interface{}, int32) {
 	return jsonMap, ERR_NONE
 }
 
-func BufferToJsonStruct(srcPtr unsafe.Pointer, dst interface{}) int32 {
+func BufferToJsonStruct(srcPtr unsafe.Pointer, dst any) int32 {
 	if srcPtr == nil {
 		return ERR_NULL_PTR
 	}
@@ -382,7 +371,7 @@ func BufferToJsonStruct(srcPtr unsafe.Pointer, dst interface{}) int32 {
 	return ERR_NONE
 }
 
-func BufferToJsonStructSafe(src *[]byte, dst interface{}) int32 {
+func BufferToJsonStructSafe(src *[]byte, dst any) int32 {
 	if src == nil {
 		return ERR_NULL_PTR
 	}
@@ -403,14 +392,14 @@ func StringToBuffer(str string, dstPtr unsafe.Pointer) int32 {
 	return BytesToBuffer([]byte(str), dstPtr)
 }
 
-func JsonToBufferSafe(v interface{}, dst *[]byte) int32 {
+func JsonToBufferSafe(v any, dst *[]byte) int32 {
 	if dst == nil {
 		return ERR_NULL_PTR
 	}
 	return JsonToBuffer(v, Ptr(dst))
 }
 
-func JsonToBuffer(v interface{}, dstPtr unsafe.Pointer) int32 {
+func JsonToBuffer(v any, dstPtr unsafe.Pointer) int32 {
 	if dstPtr == nil {
 		return ERR_NULL_PTR
 	}
